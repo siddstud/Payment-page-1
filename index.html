@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Credit Card Payment</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #f2f2f2;
+      font-family: Arial, sans-serif;
+    }
+    .payment-box {
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      width: 320px;
+      text-align: center;
+    }
+    .payment-box input {
+      width: 90%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      text-align: center;
+      font-size: 16px;
+    }
+    .payment-box button {
+      margin-top: 20px;
+      padding: 12px;
+      width: 100%;
+      border: none;
+      border-radius: 6px;
+      background: #28a745;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="payment-box">
+    <h2>Payment</h2>
+    <form id="paymentForm">
+      <input type="text" id="card_number" placeholder="1234 5678 9012 3456" maxlength="19" required><br>
+      <input type="text" id="expiry" placeholder="MM/YY" maxlength="5" required><br>
+      <input type="password" id="cvv" placeholder="CVV" maxlength="3" required><br>
+      <input type="text" id="cardholder_name" placeholder="Cardholder Name" required><br>
+      <button type="submit">Submit</button>
+    </form>
+  </div>
+
+  <script>
+    const cardInput = document.getElementById("card_number");
+    const expiryInput = document.getElementById("expiry");
+
+    // --- Auto format card number ---
+    cardInput.addEventListener("input", () => {
+      let value = cardInput.value.replace(/\D/g, ""); // remove non-digits
+      value = value.substring(0, 16); // max 16 digits
+      cardInput.value = value.replace(/(.{4})/g, "$1 ").trim(); // insert spaces
+    });
+
+    // --- Auto format expiry (MM/YY) ---
+    expiryInput.addEventListener("input", () => {
+      let value = expiryInput.value.replace(/\D/g, ""); // only digits
+      if (value.length >= 3) {
+        value = value.substring(0, 4);
+        expiryInput.value = value.substring(0,2) + "/" + value.substring(2);
+      } else {
+        expiryInput.value = value;
+      }
+    });
+
+    // --- Submit form ---
+    document.getElementById("paymentForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+
+      const card_number = cardInput.value.replace(/\s/g, ""); // remove spaces
+      const expiry = expiryInput.value;
+      const cvv = document.getElementById("cvv").value.trim();
+      const name = document.getElementById("cardholder_name").value.trim();
+
+      if (!/^\d{16}$/.test(card_number)) return alert("❌ Invalid card number!");
+      if (!/^\d{2}\/\d{2}$/.test(expiry)) return alert("❌ Expiry must be MM/YY!");
+      if (!/^\d{3}$/.test(cvv)) return alert("❌ CVV must be 3 digits!");
+      if (name.length < 3) return alert("❌ Invalid name!");
+
+      const [month, year] = expiry.split("/").map(Number);
+      const now = new Date();
+      const currentYear = now.getFullYear() % 100;
+      const currentMonth = now.getMonth() + 1;
+      if (month < 1 || month > 12) return alert("❌ Invalid expiry month!");
+      if (year < currentYear || (year === currentYear && month < currentMonth)) {
+        return alert("❌ Card expired!");
+      }
+
+      const data = { card_number, expiry_month: month, expiry_year: 2000+year, cvv, cardholder_name: name };
+
+      try {
+        const res = await fetch("http://localhost:3000/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+
+        if (res.ok) {
+          window.location.href = "thankyou.html";
+        } else {
+          const text = await res.text();
+          alert("❌ Error: " + text);
+        }
+      } catch (err) {
+        alert("❌ Server error: " + err.message);
+      }
+    });
+  </script>
+</body>
+</html>
